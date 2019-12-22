@@ -1,4 +1,4 @@
-name: Build, Lint, and Test
+name: Build and Test
 
 on:
   - push
@@ -16,7 +16,5 @@ jobs:
         node-version: 10.x
     - name: npm install and build
       run: npm ci
-    - name: lint
-      run: npm run lint
     - name: test
       run: npm test
