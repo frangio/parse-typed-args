@@ -11,6 +11,7 @@
   "scripts": {
     "prepare": "tsc",
     "test": "ava",
+    "test:watch": "ava --watch",
     "lint": "eslint src/**/*"
   },
   "devDependencies": {
