@@ -5,8 +5,11 @@
   "author": "Francisco Giordano <frangio.1@gmail.com>",
   "repository": "github:frangio/template-typescript-ava",
   "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "files": [
-    "/dist"
+    "/dist/**/*.js",
+    "/dist/**/*.js.map",
+    "/dist/**/*.d.ts"
   ],
   "scripts": {
     "prepare": "tsc",
