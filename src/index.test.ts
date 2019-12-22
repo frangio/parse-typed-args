@@ -7,6 +7,7 @@ test('empty spec', t => {
   const output = arugu({})(input);
   t.deepEqual(output, {
     flags: {},
+    args: ['a', 'b'],
   });
 });
 
@@ -21,8 +22,7 @@ test('flag with equal sign', t => {
       option: {},
     },
   })(input);
-  const option: string | undefined = output.flags.option;
-  t.is(option, '1');
+  t.is(output.flags.option, '1');
 });
 
 test('flag with default', t => {
@@ -30,24 +30,21 @@ test('flag with default', t => {
   const output = arugu({
     flags: {
       option: {
-        default: '2'
+        default: '2',
       },
     },
   })(input);
-  const option: string | undefined = output.flags.option;
-  t.is(option, '2');
+  t.is(output.flags.option, '2');
 });
 
 test('flag with separate value', t => {
   const input = argv('--option', '3');
   const output = arugu({
     flags: {
-      option: {
-      },
+      option: {},
     },
   })(input);
-  const option: string | undefined = output.flags.option;
-  t.is(option, '3');
+  t.is(output.flags.option, '3');
 });
 
 test('flag with parse', t => {
@@ -59,8 +56,7 @@ test('flag with parse', t => {
       },
     },
   })(input);
-  const option: number | undefined = output.flags.option;
-  t.is(option, 4);
+  t.is(output.flags.option, 4);
 });
 
 test('flag with parse and default', t => {
@@ -73,6 +69,21 @@ test('flag with parse and default', t => {
       },
     },
   })(input);
-  const option: number = output.flags.option;
-  t.is(option, 4);
+  t.is(output.flags.option, 4);
+});
+
+test('mixed flags and args', t => {
+  const input = argv('a', '--opt1', '4', 'b', '--opt2=5', 'c');
+  const output = arugu({
+    flags: {
+      opt1: {
+        parse: s => parseInt(s, 10),
+        default: 5,
+      },
+      opt2: {},
+    },
+  })(input);
+  t.is(output.flags.opt1, 4);
+  t.is(output.flags.opt2, '5');
+  t.deepEqual(output.args, ['a', 'b', 'c']);
 });

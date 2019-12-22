@@ -25,6 +25,7 @@ type Parser<S extends Spec> = (argv: string[]) => Program<S>;
 
 interface Program<S extends Spec> {
   flags: ProgramFlags<S>;
+  args: string[];
 }
 
 type ProgramFlags<S extends Spec> = {
@@ -42,56 +43,77 @@ type FlagValue<F extends FlagSpec> =
   : F extends FlagSpecGeneric<infer T> ? T
   : never;
 
-export function arugu<S extends Spec>(spec: S): Parser<S> {
-  return function (argv: string[]): Program<S> {
-    const flags: Partial<ProgramFlags<S>> = {};
+export function arugu<S extends Spec>(spec: S): Parser<S>;
+export function arugu(spec: Spec<any>): Parser<Spec<any>> {
+  return function (argv: string[]): Program<Spec<any>> {
+    const args: string[] = [];
+    const flags: Record<any, unknown> = {};
 
-    const iter = argv[Symbol.iterator]();
-    iter.next();
-    iter.next();
+    for (const arg of parseArgv(spec, argv)) {
+      if ('flag' in arg) {
+        const { flag, value } = arg;
+        const flagSpec = spec.flags[flag];
 
-    if (spec.flags !== undefined) {
-      for (const arg of iter) {
-        let { flag, input } = parseFlag(arg);
-
-        if (flag === undefined) {
-          continue;
+        if (flagSpec.switch) {
+          flags[flag] = flagSpec.default ?? true;
+        } else if (value !== undefined) {
+          flags[flag] = flagSpec.parse?.(value) ?? value;
+        } else {
+          flags[flag] = flagSpec.default;
         }
-
-        const flagPair = Object.entries(spec.flags).find(([f, s]) => `--${f}` === flag);
-
-        if (flagPair === undefined) {
-          throw new Error(`Unknown flag ${flag}`);
-        }
-
-        const [flagName, flagSpec] = flagPair;
-
-        if (!flagSpec.switch && input === undefined) {
-          const res = iter.next();
-          if (res.done) {
-            if ('default' in flagSpec) {
-              input = flagSpec.default as any;
-            } else {
-              throw new Error(`Missing value for flag ${flag}`);
-            }
-          } else {
-            input = res.value;
-          }
-        }
-
-        flags[flagName as keyof ProgramFlags<S>] = flagSpec.parse?.(input!) ?? input as any;
+      } else {
+        args.push(arg.value);
       }
     }
 
-    return { flags: flags as ProgramFlags<S> };
+    return { flags, args };
   }
 }
 
-function parseFlag(arg: string): { flag?: string, input?: string } {
-  if (arg.startsWith('--')) {
-    const [, flag, input] = arg.match(/^(.*?)(?:=(.*))?$/)!;
-    return { flag, input };
-  } else {
-    return {};
+type Arg<S extends Spec> = FlagArg<S> | PositionalArg;
+
+interface FlagArg<S extends Spec> {
+  flag: keyof S['flags'];
+  value?: string;
+}
+
+interface PositionalArg {
+  value: string;
+}
+
+function* parseArgv<S extends Spec>(spec: S, argv: string[]): Generator<Arg<S>, void> {
+  const flagKeys: Record<string, string> = {};
+
+  if (spec.flags !== undefined) {
+    for (const flagKey in spec.flags) {
+      flagKeys[`--${flagKey}`] = flagKey;
+    }
+  }
+
+  const iter = argv[Symbol.iterator]();
+  iter.next(); // skip node executable
+  iter.next(); // skip script
+
+  for (const arg of iter) {
+    if (arg.startsWith('--')) {
+      const [, name, eqValue] = arg.match(/^(.*?)(?:=(.*))?$/)!;
+      const flag = flagKeys[name];
+      if (flag === undefined) {
+        throw new Error(`Unknown flag ${name}`);
+      }
+      const flagSpec = spec.flags[flag];
+      if (flagSpec.switch) {
+        if (eqValue !== undefined) {
+          throw new Error(`Flag ${name} is not expecting an argument`);
+        } else {
+          yield { flag };
+        }
+      } else {
+        const [value] = eqValue ?? iter;
+        yield { flag, value };
+      }
+    } else {
+      yield { value: arg };
+    }
   }
 }
