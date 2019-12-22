@@ -16,13 +16,13 @@ function argv(...args: string[]): string[] {
 }
 
 test('flag with equal sign', t => {
-  const input = argv('--option=1');
+  const input = argv('--option=11');
   const output = arugu({
     flags: {
       option: {},
     },
   })(input);
-  t.is(output.flags.option, '1');
+  t.is(output.flags.option, '11');
 });
 
 test('flag with default', t => {
@@ -30,25 +30,25 @@ test('flag with default', t => {
   const output = arugu({
     flags: {
       option: {
-        default: '2',
+        default: '22',
       },
     },
   })(input);
-  t.is(output.flags.option, '2');
+  t.is(output.flags.option, '22');
 });
 
 test('flag with separate value', t => {
-  const input = argv('--option', '3');
+  const input = argv('--option', '33');
   const output = arugu({
     flags: {
       option: {},
     },
   })(input);
-  t.is(output.flags.option, '3');
+  t.is(output.flags.option, '33');
 });
 
 test('flag with parse', t => {
-  const input = argv('--option', '4');
+  const input = argv('--option', '44');
   const output = arugu({
     flags: {
       option: {
@@ -56,11 +56,11 @@ test('flag with parse', t => {
       },
     },
   })(input);
-  t.is(output.flags.option, 4);
+  t.is(output.flags.option, 44);
 });
 
 test('flag with parse and default', t => {
-  const input = argv('--option', '4');
+  const input = argv('--option', '44');
   const output = arugu({
     flags: {
       option: {
@@ -69,11 +69,11 @@ test('flag with parse and default', t => {
       },
     },
   })(input);
-  t.is(output.flags.option, 4);
+  t.is(output.flags.option, 44);
 });
 
 test('mixed flags and args', t => {
-  const input = argv('a', '--opt1', '4', 'b', '--opt2=5', 'c');
+  const input = argv('a', '--opt1', '44', 'b', '--opt2=55', 'c');
   const output = arugu({
     flags: {
       opt1: {
@@ -83,7 +83,7 @@ test('mixed flags and args', t => {
       opt2: {},
     },
   })(input);
-  t.is(output.flags.opt1, 4);
-  t.is(output.flags.opt2, '5');
+  t.is(output.flags.opt1, 44);
+  t.is(output.flags.opt2, '55');
   t.deepEqual(output.args, ['a', 'b', 'c']);
 });

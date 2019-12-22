@@ -101,8 +101,10 @@ function* parseArgv<F extends string, S extends Spec<F>>(spec: S, argv: string[]
         } else {
           yield { flag };
         }
+      } else if (eqValue !== undefined) {
+        yield { flag, value: eqValue };
       } else {
-        const [value] = eqValue ?? iter;
+        const [value] = iter;
         yield { flag, value };
       }
     } else {
