@@ -44,29 +44,22 @@ type FlagValue<F extends FlagSpec> =
   : never;
 
 export function arugu<S extends Spec>(spec: S): Parser<S>;
-export function arugu(spec: Spec<any>): Parser<Spec<any>> {
-  return function (argv: string[]): Program<Spec<any>> {
+export function arugu<F extends string, S extends Spec<F>>(spec: S): Parser<S> {
+  return function (argv: string[]): Program<S> {
     const args: string[] = [];
-    const flags: Record<any, unknown> = {};
+    const flags: Partial<ProgramFlags<S>> = {};
 
     for (const arg of parseArgv(spec, argv)) {
       if ('flag' in arg) {
         const { flag, value } = arg;
-        const flagSpec = spec.flags[flag];
-
-        if (flagSpec.switch) {
-          flags[flag] = flagSpec.default ?? true;
-        } else if (value !== undefined) {
-          flags[flag] = flagSpec.parse?.(value) ?? value;
-        } else {
-          flags[flag] = flagSpec.default;
-        }
+        const flagSpec = spec.flags![flag]; // parseArgv guarantees there is a matching flag
+        flags[flag] = flagValue(flagSpec, value) as any;
       } else {
         args.push(arg.value);
       }
     }
 
-    return { flags, args };
+    return { flags, args } as Program<S>;
   }
 }
 
@@ -81,12 +74,12 @@ interface PositionalArg {
   value: string;
 }
 
-function* parseArgv<S extends Spec>(spec: S, argv: string[]): Generator<Arg<S>, void> {
-  const flagKeys: Record<string, string> = {};
+function* parseArgv<F extends string, S extends Spec<F>>(spec: S, argv: string[]): Generator<Arg<S>, void> {
+  const flagKeys: Record<string, keyof S['flags']> = {};
 
   if (spec.flags !== undefined) {
     for (const flagKey in spec.flags) {
-      flagKeys[`--${flagKey}`] = flagKey;
+      flagKeys[`--${flagKey}`] = flagKey as unknown as keyof S['flags'];
     }
   }
 
@@ -101,7 +94,7 @@ function* parseArgv<S extends Spec>(spec: S, argv: string[]): Generator<Arg<S>, 
       if (flag === undefined) {
         throw new Error(`Unknown flag ${name}`);
       }
-      const flagSpec = spec.flags[flag];
+      const flagSpec = spec.flags![flag]; // the existence of flag guarantees spec.flags is non nullish
       if (flagSpec.switch) {
         if (eqValue !== undefined) {
           throw new Error(`Flag ${name} is not expecting an argument`);
@@ -115,5 +108,16 @@ function* parseArgv<S extends Spec>(spec: S, argv: string[]): Generator<Arg<S>, 
     } else {
       yield { value: arg };
     }
+  }
+}
+
+function flagValue<F extends FlagSpec>(flagSpec: F, value?: string): FlagType<F>;
+function flagValue(flagSpec: FlagSpec<any>, value?: string): any {
+  if (flagSpec.switch) {
+    return flagSpec.default ?? true;
+  } else if (value !== undefined) {
+    return flagSpec.parse?.(value) ?? value;
+  } else {
+    return flagSpec.default;
   }
 }
