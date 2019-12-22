@@ -1,9 +1,9 @@
 {
-  "name": "template-typescript-ava",
+  "name": "arugu",
   "version": "0.1.0",
-  "description": "Project template using TypeScript and AVA",
+  "description": "A typed argument parser",
   "author": "Francisco Giordano <frangio.1@gmail.com>",
-  "repository": "github:frangio/template-typescript-ava",
+  "repository": "github:frangio/arugu",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [
