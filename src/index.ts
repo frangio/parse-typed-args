@@ -94,8 +94,15 @@ function* parseArgv<F extends string, S extends Spec<F>>(spec: S, argv: string[]
   iter.next(); // skip node executable
   iter.next(); // skip script
 
+  let parseFlags = true;
+
   for (const arg of iter) {
-    if (arg.startsWith('--')) {
+    if (arg === '--') {
+      parseFlags = false;
+      continue;
+    }
+
+    if (parseFlags && arg.startsWith('--')) {
       const [, name, eqValue] = arg.match(/^(.*?)(?:=(.*))?$/)!;
       const flag = flagKeys[name];
       if (flag === undefined) {

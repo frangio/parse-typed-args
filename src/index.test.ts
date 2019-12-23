@@ -99,3 +99,16 @@ test('default value for missing flag', t => {
   })(input);
   t.is(output.flags.option, 1);
 });
+
+test('stop parsing flags after --', t => {
+  const input = argv('--yes', '--', '--no');
+  const output = arugu({
+    flags: {
+      yes: {
+        switch: true,
+      },
+    },
+  })(input);
+  t.is(output.flags.yes, true);
+  t.deepEqual(output.args, ['--no']);
+});
