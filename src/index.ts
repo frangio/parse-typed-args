@@ -63,7 +63,7 @@ export function arugu<F extends string, S extends Spec<F>>(spec: S): Parser<S> {
     for (const _flag in spec.flags) {
       const flag = _flag as keyof typeof flags;
       if (flags[flag] === undefined) {
-        flags[flag] = flagValue(spec.flags![flag]) as any;
+        flags[flag] = flagValue(spec.flags![flag], undefined, false) as any;
       }
     }
 
@@ -147,10 +147,10 @@ function* parseArgv<F extends string, S extends Spec<F>>(spec: S, argv: string[]
   }
 }
 
-function flagValue<F extends FlagSpec>(flagSpec: F, value?: string): FlagType<F>;
-function flagValue(flagSpec: FlagSpec<any>, value?: string): any {
+function flagValue<F extends FlagSpec>(flagSpec: F, value?: string, present?: boolean): FlagType<F>;
+function flagValue(flagSpec: FlagSpec<any>, value?: string, present = true): any {
   if (flagSpec.switch) {
-    return flagSpec.default ?? true;
+    return present ? true : (flagSpec.default ?? false);
   } else if (value !== undefined) {
     return flagSpec.parse?.(value) ?? value;
   } else {

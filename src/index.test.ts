@@ -137,3 +137,15 @@ test('short option with value', t => {
   })(input);
   t.is(output.flags.value, '10');
 });
+
+test('default value for boolean switches', t => {
+  const input = argv();
+  const output = arugu({
+    flags: {
+      yes: {
+        switch: true,
+      },
+    },
+  })(input);
+  t.is(output.flags.yes, false);
+});
