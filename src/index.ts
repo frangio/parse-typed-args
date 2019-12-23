@@ -7,6 +7,7 @@ interface Spec<Flag extends string = string> {
 type FlagSpec<T = unknown> = FlagSpecGeneric<T> | FlagSpecBoolean;
 
 interface FlagSpecBase<T> {
+  short?: string;
   switch?: boolean;
   default?: T;
   parse?: (input: string) => T;
@@ -87,6 +88,13 @@ function* parseArgv<F extends string, S extends Spec<F>>(spec: S, argv: string[]
   if (spec.flags !== undefined) {
     for (const flagKey in spec.flags) {
       flagKeys[`--${flagKey}`] = flagKey as unknown as keyof S['flags'];
+      const { short } = spec.flags[flagKey];
+      if (short !== undefined) {
+        if (short.length !== 1) {
+          throw new Error(`Short option ${short} is more than one character long`);
+        }
+        flagKeys[`-${short}`] = flagKey as unknown as keyof S['flags'];
+      }
     }
   }
 
@@ -117,6 +125,18 @@ function* parseArgv<F extends string, S extends Spec<F>>(spec: S, argv: string[]
         }
       } else if (eqValue !== undefined) {
         yield { flag, value: eqValue };
+      } else {
+        const [value] = iter;
+        yield { flag, value };
+      }
+    } else if (parseFlags && arg.startsWith('-')) {
+      const flag = flagKeys[arg];
+      if (flag === undefined) {
+        throw new Error(`Unknown short option ${arg}`);
+      }
+      const flagSpec = spec.flags![flag]; // the existence of flag guarantees spec.flags is non nullish
+      if (flagSpec.switch) {
+        yield { flag };
       } else {
         const [value] = iter;
         yield { flag, value };

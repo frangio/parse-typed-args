@@ -112,3 +112,28 @@ test('stop parsing flags after --', t => {
   t.is(output.flags.yes, true);
   t.deepEqual(output.args, ['--no']);
 });
+
+test('short switch', t => {
+  const input = argv('-y');
+  const output = arugu({
+    flags: {
+      yes: {
+        switch: true,
+        short: 'y',
+      },
+    },
+  })(input);
+  t.is(output.flags.yes, true);
+});
+
+test('short option with value', t => {
+  const input = argv('-v', '10');
+  const output = arugu({
+    flags: {
+      value: {
+        short: 'v',
+      },
+    },
+  })(input);
+  t.is(output.flags.value, '10');
+});
