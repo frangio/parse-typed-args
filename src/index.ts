@@ -59,6 +59,13 @@ export function arugu<F extends string, S extends Spec<F>>(spec: S): Parser<S> {
       }
     }
 
+    for (const _flag in spec.flags) {
+      const flag = _flag as keyof typeof flags;
+      if (flags[flag] === undefined) {
+        flags[flag] = flagValue(spec.flags![flag]) as any;
+      }
+    }
+
     return { flags, args } as Program<S>;
   }
 }

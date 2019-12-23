@@ -87,3 +87,15 @@ test('mixed flags and args', t => {
   t.is(output.flags.opt2, '55');
   t.deepEqual(output.args, ['a', 'b', 'c']);
 });
+
+test('default value for missing flag', t => {
+  const input = argv();
+  const output = arugu({
+    flags: {
+      option: {
+        default: 1,
+      },
+    },
+  })(input);
+  t.is(output.flags.option, 1);
+});
