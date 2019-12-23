@@ -1,4 +1,4 @@
-type Arugu<S extends Spec> = (spec: S) => Parser<S>;
+type Tycl<S extends Spec> = (spec: S) => Parser<S>;
 
 interface Spec<Flag extends string = string> {
   flags?: Record<Flag, FlagSpec>;
@@ -44,8 +44,8 @@ type FlagValue<F extends FlagSpec> =
   : F extends FlagSpecGeneric<infer T> ? T
   : never;
 
-export function arugu<S extends Spec>(spec: S): Parser<S>;
-export function arugu<F extends string, S extends Spec<F>>(spec: S): Parser<S> {
+export function tycl<S extends Spec>(spec: S): Parser<S>;
+export function tycl<F extends string, S extends Spec<F>>(spec: S): Parser<S> {
   return function (argv: string[]): Program<S> {
     const args: string[] = [];
     const flags: Partial<ProgramFlags<S>> = {};

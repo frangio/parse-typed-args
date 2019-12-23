@@ -1,9 +1,9 @@
 {
-  "name": "arugu",
+  "name": "tycl",
   "version": "0.1.0",
   "description": "A typed argument parser",
   "author": "Francisco Giordano <frangio.1@gmail.com>",
-  "repository": "github:frangio/arugu",
+  "repository": "github:frangio/tycl",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [
