@@ -1,5 +1,3 @@
-type Tycl<S extends Spec> = (spec: S) => Parser<S>;
-
 interface Spec<Flag extends string = string> {
   flags?: Record<Flag, FlagSpec>;
 }
@@ -44,26 +42,26 @@ type FlagValue<F extends FlagSpec> =
   : F extends FlagSpecGeneric<infer T> ? T
   : never;
 
-export function tycl<S extends Spec>(spec: S): Parser<S>;
-export function tycl<F extends string, S extends Spec<F>>(spec: S): Parser<S> {
+export function tycl<S extends Spec>(spec: S): Parser<S> {
+  const flagSpecs = specFlags(spec);
+
   return function (argv: string[]): Program<S> {
     const args: string[] = [];
-    const flags: Partial<ProgramFlags<S>> = {};
+    const flags: Partial<Record<keyof S['flags'], unknown>> = {};
 
     for (const arg of parseArgv(spec, argv)) {
       if ('flag' in arg) {
         const { flag, value } = arg;
-        const flagSpec = spec.flags![flag]; // parseArgv guarantees there is a matching flag
-        flags[flag] = flagValue(flagSpec, value) as any;
+        const flagSpec = flagSpecs![flag]; // Existence of flag guarantees flagSpecs is non-nullish
+        flags[flag] = flagValue(flagSpec, value);
       } else {
         args.push(arg.value);
       }
     }
 
-    for (const _flag in spec.flags) {
-      const flag = _flag as keyof typeof flags;
+    for (const flag in flagSpecs) {
       if (flags[flag] === undefined) {
-        flags[flag] = flagValue(spec.flags![flag], undefined, false) as any;
+        flags[flag] = flagValue(flagSpecs[flag], undefined, false);
       }
     }
 
@@ -82,21 +80,8 @@ interface PositionalArg {
   value: string;
 }
 
-function* parseArgv<F extends string, S extends Spec<F>>(spec: S, argv: string[]): Generator<Arg<S>, void> {
-  const flagKeys: Record<string, keyof S['flags']> = {};
-
-  if (spec.flags !== undefined) {
-    for (const flagKey in spec.flags) {
-      flagKeys[`--${flagKey}`] = flagKey as unknown as keyof S['flags'];
-      const { short } = spec.flags[flagKey];
-      if (short !== undefined) {
-        if (short.length !== 1) {
-          throw new Error(`Short option ${short} is more than one character long`);
-        }
-        flagKeys[`-${short}`] = flagKey as unknown as keyof S['flags'];
-      }
-    }
-  }
+function* parseArgv<S extends Spec>(spec: S, argv: string[]): Iterable<Arg<S>> {
+  const flagLookup = buildFlagLookupTable(spec);
 
   const iter = argv[Symbol.iterator]();
   iter.next(); // skip node executable
@@ -112,11 +97,11 @@ function* parseArgv<F extends string, S extends Spec<F>>(spec: S, argv: string[]
 
     if (parseFlags && arg.startsWith('--')) {
       const [, name, eqValue] = arg.match(/^(.*?)(?:=(.*))?$/)!;
-      const flag = flagKeys[name];
+      const flag = flagLookup[name];
       if (flag === undefined) {
         throw new Error(`Unknown flag ${name}`);
       }
-      const flagSpec = spec.flags![flag]; // the existence of flag guarantees spec.flags is non nullish
+      const flagSpec = specFlags(spec)![flag]; // Existence of flag guarantees specFlags(spec) is non-nullish
       if (flagSpec.switch) {
         if (eqValue !== undefined) {
           throw new Error(`Flag ${name} is not expecting an argument`);
@@ -130,11 +115,11 @@ function* parseArgv<F extends string, S extends Spec<F>>(spec: S, argv: string[]
         yield { flag, value };
       }
     } else if (parseFlags && arg.startsWith('-')) {
-      const flag = flagKeys[arg];
+      const flag = flagLookup[arg];
       if (flag === undefined) {
         throw new Error(`Unknown short option ${arg}`);
       }
-      const flagSpec = spec.flags![flag]; // the existence of flag guarantees spec.flags is non nullish
+      const flagSpec = specFlags(spec)![flag]; // Existence of flag guarantees specFlags(spec) is non-nullish
       if (flagSpec.switch) {
         yield { flag };
       } else {
@@ -147,6 +132,25 @@ function* parseArgv<F extends string, S extends Spec<F>>(spec: S, argv: string[]
   }
 }
 
+function buildFlagLookupTable<S extends Spec>(spec: S): Partial<Record<string, keyof S['flags']>> {
+  const flagLookup: Record<string, keyof S['flags']> = {};
+
+  const flags = specFlags(spec);
+
+  for (const flagKey in flags) {
+    flagLookup[`--${flagKey}`] = flagKey;
+    const { short } = flags[flagKey];
+    if (short !== undefined) {
+      if (short.length !== 1) {
+        throw new Error(`Short option ${short} is more than one character long`);
+      }
+      flagLookup[`-${short}`] = flagKey;
+    }
+  }
+
+  return flagLookup;
+}
+
 function flagValue<F extends FlagSpec>(flagSpec: F, value?: string, present?: boolean): FlagType<F>;
 function flagValue(flagSpec: FlagSpec<any>, value?: string, present = true): any {
   if (flagSpec.switch) {
@@ -156,4 +160,11 @@ function flagValue(flagSpec: FlagSpec<any>, value?: string, present = true): any
   } else {
     return flagSpec.default;
   }
+}
+
+// We define this getter to help the type system get the correct type for
+// spec.flags. If we don't do this, it types the value spec.flags as if spec
+// was Spec<string>.
+function specFlags<S extends Spec>(spec: S): S['flags'] {
+  return spec.flags;
 }
