@@ -1,6 +1,6 @@
 import test from 'ava';
 
-import { tycl } from '.';
+import tycl from '.';
 
 test('empty spec', t => {
   const input = ['node', 'script.js', 'a', 'b'];
