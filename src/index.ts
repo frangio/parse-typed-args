@@ -80,55 +80,69 @@ interface PositionalArg {
   value: string;
 }
 
-function* parseArgv<S extends Spec>(spec: S, argv: string[]): Iterable<Arg<S>> {
-  const flagLookup = buildFlagLookupTable(spec);
+interface PartialFlagArg<S extends Spec> extends FlagArg<S> {
+  needsValue: boolean;
+}
 
-  const iter = argv[Symbol.iterator]();
-  iter.next(); // skip node executable
-  iter.next(); // skip script
+function* parseArgv<S extends Spec>(spec: S, argv: string[]): Iterable<Arg<S>> {
+  const parseFlagArg = flagArgParser(spec);
+
+  const argIter = argv[Symbol.iterator]();
+  argIter.next(); // skip node executable
+  argIter.next(); // skip script
 
   let parseFlags = true;
 
-  for (const arg of iter) {
+  for (const arg of argIter) {
     if (arg === '--') {
       parseFlags = false;
       continue;
     }
 
-    if (parseFlags && arg.startsWith('--')) {
-      const [, name, eqValue] = arg.match(/^(.*?)(?:=(.*))?$/)!;
-      const flag = flagLookup[name];
-      if (flag === undefined) {
-        throw new Error(`Unknown flag ${name}`);
+    if (parseFlags && arg.startsWith('-')) {
+      const partialFlag = parseFlagArg(arg);
+      const { flag, needsValue } = partialFlag;
+      let { value } = partialFlag;
+      if (needsValue) {
+        [value] = argIter; // Get next arg if any
       }
-      const flagSpec = specFlags(spec)![flag]; // Existence of flag guarantees specFlags(spec) is non-nullish
-      if (flagSpec.switch) {
-        if (eqValue !== undefined) {
-          throw new Error(`Flag ${name} is not expecting an argument`);
-        } else {
-          yield { flag };
-        }
-      } else if (eqValue !== undefined) {
-        yield { flag, value: eqValue };
-      } else {
-        const [value] = iter;
-        yield { flag, value };
-      }
-    } else if (parseFlags && arg.startsWith('-')) {
-      const flag = flagLookup[arg];
-      if (flag === undefined) {
-        throw new Error(`Unknown short option ${arg}`);
-      }
-      const flagSpec = specFlags(spec)![flag]; // Existence of flag guarantees specFlags(spec) is non-nullish
-      if (flagSpec.switch) {
-        yield { flag };
-      } else {
-        const [value] = iter;
-        yield { flag, value };
-      }
+      yield { flag, value };
     } else {
       yield { value: arg };
     }
+  }
+}
+
+function flagArgParser<S extends Spec>(spec: S): (arg: string) => PartialFlagArg<S> {
+  const flagLookup = buildFlagLookupTable(spec);
+
+  return function parseFlagArg<S extends Spec>(arg: string): PartialFlagArg<S> {
+    if (!arg.startsWith('-')) {
+      throw new Error('Unexpected error');
+    }
+
+    let flagKey = arg;
+    let value;
+
+    // Extract value if there is an equal sign.
+    if (arg.startsWith('--')) {
+      [, flagKey, value] = arg.match(/^(.*?)(?:=(.*))?$/)!; // RegExp always trivially matches
+    }
+
+    const flag = flagLookup[flagKey];
+
+    if (flag === undefined) {
+      throw new Error(`Unknown flag ${flagKey}`);
+    }
+
+    const flagSpec = specFlags(spec)![flag]; // Existence of flag guarantees specFlags(spec) is non-nullish
+    const isSwitch = flagSpec.switch === true;
+
+    if (isSwitch && value !== undefined) {
+      throw new Error(`Flag ${flagKey} is not expecting an argument`);
+    }
+
+    return { flag, value, needsValue: !isSwitch && value === undefined };
   }
 }
 
