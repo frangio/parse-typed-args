@@ -20,14 +20,14 @@ interface FlagSpecBoolean extends FlagSpecBase<boolean> {
   switch: true;
 }
 
-type Parser<S extends Spec> = (argv: string[]) => Program<S>;
+type Parser<S extends Spec> = (argv: string[]) => Command<S>;
 
-interface Program<S extends Spec> {
-  flags: ProgramFlags<S>;
+interface Command<S extends Spec> {
+  flags: CommandFlags<S>;
   args: string[];
 }
 
-type ProgramFlags<S extends Spec> = {
+type CommandFlags<S extends Spec> = {
   [flag in keyof S['flags']]: FlagType<S['flags'][flag]>;
 };
 
@@ -45,7 +45,7 @@ type FlagValue<F extends FlagSpec> =
 export default function tycl<S extends Spec>(spec: S): Parser<S> {
   const flagSpecs = specFlags(spec);
 
-  return function (argv: string[]): Program<S> {
+  return function (argv: string[]): Command<S> {
     const args: string[] = [];
     const flags: Partial<Record<keyof S['flags'], unknown>> = {};
 
@@ -65,7 +65,7 @@ export default function tycl<S extends Spec>(spec: S): Parser<S> {
       }
     }
 
-    return { flags, args } as Program<S>;
+    return { flags, args } as Command<S>;
   }
 }
 
