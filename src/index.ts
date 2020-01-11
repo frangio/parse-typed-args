@@ -2,7 +2,7 @@ interface Spec<Flag extends string = string> {
   flags?: Record<Flag, FlagSpec>;
 }
 
-type FlagSpec<T = unknown> = FlagSpecGeneric<T> | FlagSpecBoolean;
+type FlagSpec<T = unknown> = FlagSpecGeneric<T> | FlagSpecString | FlagSpecBoolean;
 
 interface FlagSpecBase<T> {
   short?: string;
@@ -11,9 +11,13 @@ interface FlagSpecBase<T> {
   parse?: (input: string) => T;
 }
 
+interface FlagSpecString extends FlagSpecBase<string> {
+  switch?: false;
+}
+
 interface FlagSpecGeneric<T> extends FlagSpecBase<T> {
   switch?: false;
-  parse?: (input: string) => T;
+  parse: (input: string) => T;
 }
 
 interface FlagSpecBoolean extends FlagSpecBase<boolean> {

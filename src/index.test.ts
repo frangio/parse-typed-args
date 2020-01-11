@@ -94,6 +94,7 @@ test('default value for missing flag', t => {
     flags: {
       option: {
         default: 1,
+        parse: Number,
       },
     },
   })(input);
