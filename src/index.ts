@@ -42,7 +42,7 @@ type FlagValue<F extends FlagSpec> =
   : F extends FlagSpecGeneric<infer T> ? T
   : never;
 
-export default function tycl<S extends Spec>(spec: S): Parser<S> {
+export default function parse<S extends Spec>(spec: S): Parser<S> {
   const flagSpecs = specFlags(spec);
 
   return function (argv: string[]): Command<S> {

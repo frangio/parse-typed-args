@@ -1,9 +1,9 @@
 {
-  "name": "tycl",
+  "name": "parse-typed-args",
   "version": "0.1.0",
   "description": "A typed argument parser",
   "author": "Francisco Giordano <frangio.1@gmail.com>",
-  "repository": "github:frangio/tycl",
+  "repository": "github:frangio/parse-typed-args",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [

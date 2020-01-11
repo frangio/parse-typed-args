@@ -1,10 +1,10 @@
 import test from 'ava';
 
-import tycl from '.';
+import parse from '.';
 
 test('empty spec', t => {
   const input = ['node', 'script.js', 'a', 'b'];
-  const output = tycl({})(input);
+  const output = parse({})(input);
   t.deepEqual(output, {
     flags: {},
     args: ['a', 'b'],
@@ -17,7 +17,7 @@ function argv(...args: string[]): string[] {
 
 test('flag with equal sign', t => {
   const input = argv('--option=11');
-  const output = tycl({
+  const output = parse({
     flags: {
       option: {},
     },
@@ -27,7 +27,7 @@ test('flag with equal sign', t => {
 
 test('flag with default', t => {
   const input = argv('--option');
-  const output = tycl({
+  const output = parse({
     flags: {
       option: {
         default: '22',
@@ -39,7 +39,7 @@ test('flag with default', t => {
 
 test('flag with separate value', t => {
   const input = argv('--option', '33');
-  const output = tycl({
+  const output = parse({
     flags: {
       option: {},
     },
@@ -49,7 +49,7 @@ test('flag with separate value', t => {
 
 test('flag with parse', t => {
   const input = argv('--option', '44');
-  const output = tycl({
+  const output = parse({
     flags: {
       option: {
         parse: s => parseInt(s, 10),
@@ -61,7 +61,7 @@ test('flag with parse', t => {
 
 test('flag with parse and default', t => {
   const input = argv('--option', '44');
-  const output = tycl({
+  const output = parse({
     flags: {
       option: {
         parse: s => parseInt(s, 10),
@@ -74,7 +74,7 @@ test('flag with parse and default', t => {
 
 test('mixed flags and args', t => {
   const input = argv('a', '--opt1', '44', 'b', '--opt2=55', 'c');
-  const output = tycl({
+  const output = parse({
     flags: {
       opt1: {
         parse: s => parseInt(s, 10),
@@ -90,7 +90,7 @@ test('mixed flags and args', t => {
 
 test('default value for missing flag', t => {
   const input = argv();
-  const output = tycl({
+  const output = parse({
     flags: {
       option: {
         default: 1,
@@ -102,7 +102,7 @@ test('default value for missing flag', t => {
 
 test('stop parsing flags after --', t => {
   const input = argv('--yes', '--', '--no');
-  const output = tycl({
+  const output = parse({
     flags: {
       yes: {
         switch: true,
@@ -115,7 +115,7 @@ test('stop parsing flags after --', t => {
 
 test('short switch', t => {
   const input = argv('-y');
-  const output = tycl({
+  const output = parse({
     flags: {
       yes: {
         switch: true,
@@ -128,7 +128,7 @@ test('short switch', t => {
 
 test('short option with value', t => {
   const input = argv('-v', '10');
-  const output = tycl({
+  const output = parse({
     flags: {
       value: {
         short: 'v',
@@ -140,7 +140,7 @@ test('short option with value', t => {
 
 test('default value for boolean switches', t => {
   const input = argv();
-  const output = tycl({
+  const output = parse({
     flags: {
       yes: {
         switch: true,

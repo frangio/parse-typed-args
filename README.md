@@ -1,19 +1,19 @@
-# tycl
+# parse-typed-args
 
 **Fully typed CLI entry points.** Command line argument parser for TypeScript.
 
 ## Install
 
 ```
-npm install tycl
+npm install parse-typed-args
 ```
 
 ## Usage
 
 ```typescript
-import tycl from 'tycl';
+import parse from 'parse-typed-args';
 
-const command = tycl({
+const command = parse({
   flags: {
     flavor: {},
     amount: {
@@ -49,7 +49,7 @@ _**Note:** The types presented here are simplified. In reality, almost all types
 generic on the specific `S extends Spec` that contains the details of the
 accepted flags, or `F extends string` that contains the names of the flags._
 
-### `tycl(spec: Spec): Parser`
+### `parse(spec: Spec): Parser`
 
 This function constructs a parser function from the command specification.
 
