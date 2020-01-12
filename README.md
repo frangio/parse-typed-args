@@ -20,6 +20,9 @@ const command = parse({
       default: 1,
       parse: Number,
     },
+    cone: {
+      switch: true,
+    },
   },
 })(process.argv);
 
@@ -28,13 +31,26 @@ const { flavor, amount } = command.opts;
 // Types are inferred from the command specification above.
 // - flavor : string | undefined
 // - amount : number
+// - cone : boolean
 
 if (flavor === undefined) {
-  console.error('icem-cream-please --flavor <flavor> [--amount <amount>]');
+  console.error('icem-cream-please --flavor <flavor> [--amount <amount>] [--cone]');
   process.exit(1);
 }
 
-console.log(`Preparing ${amount} ${flavor} ice cream${amount > 1 ? 's' : ''}`);
+let msg = `Preparing ${amount} ${flavor}`;
+
+if (amount > 1) {
+  msg += ' ice creams';
+} else {
+  msg += ' ice cream';
+}
+
+if (cone) {
+  msg += ' on a cone';
+}
+
+console.log(msg);
 
 ```
 
