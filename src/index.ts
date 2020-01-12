@@ -1,8 +1,8 @@
-interface Spec<Flag extends string = string> {
-  flags?: Record<Flag, FlagSpec>;
+interface Spec<Option extends string = string> {
+  opts?: Record<Option, OptionSpec>;
 }
 
-type FlagSpec<T = unknown> = SwitchSpec<T> | NonSwitchSpec<T>;
+type OptionSpec<T = unknown> = SwitchSpec<T> | NonSwitchSpec<T>;
 
 interface SwitchSpec<T> {
   switch: true;
@@ -17,19 +17,19 @@ interface NonSwitchSpec<T> {
   short?: string;
 }
 
-type FlagDefault<O extends FlagSpec> =
+type OptionDefault<O extends OptionSpec> =
   'default' extends keyof O
     ? O['default']
     : IfSwitch<O, false, undefined>
 
-type FlagOutput<O extends FlagSpec> =
+type OptionOutput<O extends OptionSpec> =
   'parse' extends keyof O
-    ? O extends FlagSpec<infer T>
+    ? O extends OptionSpec<infer T>
       ? T
       : unknown
     : IfSwitch<O, true, string>;
 
-type IfSwitch<O extends FlagSpec, Then, Else> =
+type IfSwitch<O extends OptionSpec, Then, Else> =
   'switch' extends keyof O
     ? true extends O['switch']
       ? O['switch'] extends true
@@ -38,54 +38,54 @@ type IfSwitch<O extends FlagSpec, Then, Else> =
       : Else
     : Else
 
-type FlagType<F extends FlagSpec> =
-  // trick to force the compiler to show the expanded type to the user
+type OptionType<F extends OptionSpec> =
+  // Trick to force the compiler to show the expanded type to the user
   void extends void
-    ? FlagDefault<F> | FlagOutput<F>
+    ? OptionDefault<F> | OptionOutput<F>
     : never;
 
 type Parser<S extends Spec> = (argv: string[]) => Command<S>;
 
 interface Command<S extends Spec> {
-  flags: CommandFlags<S>;
+  opts: CommandOptions<S>;
   args: string[];
 }
 
-type CommandFlags<S extends Spec> = {
-  [flag in keyof S['flags']]: FlagType<S['flags'][flag]>;
+type CommandOptions<S extends Spec> = {
+  [opt in keyof S['opts']]: OptionType<S['opts'][opt]>;
 };
 
 export default function parse<S extends Spec>(spec: S): Parser<S> {
-  const flagSpecs = specFlags(spec);
+  const optSpecs = specOpts(spec);
 
   return function (argv: string[]): Command<S> {
     const args: string[] = [];
-    const flags: Partial<Record<keyof S['flags'], unknown>> = {};
+    const opts: Partial<Record<keyof S['opts'], unknown>> = {};
 
     for (const arg of parseArgv(spec, argv)) {
-      if ('flag' in arg) {
-        const { flag, value } = arg;
-        const flagSpec = flagSpecs![flag]; // Existence of flag guarantees flagSpecs is non-nullish
-        flags[flag] = flagValue(flagSpec, value);
+      if ('option' in arg) {
+        const { option, value } = arg;
+        const optSpec = optSpecs![option]; // Existence of opt guarantees optSpecs is non-nullish
+        opts[option] = optValue(optSpec, value);
       } else {
         args.push(arg.value);
       }
     }
 
-    for (const flag in flagSpecs) {
-      if (flags[flag] === undefined) {
-        flags[flag] = flagValue(flagSpecs[flag], undefined, false);
+    for (const opt in optSpecs) {
+      if (opts[opt] === undefined) {
+        opts[opt] = optValue(optSpecs[opt], undefined, false);
       }
     }
 
-    return { flags, args } as Command<S>;
+    return { opts, args } as Command<S>;
   }
 }
 
-type Arg<S extends Spec> = FlagArg<S> | PositionalArg;
+type Arg<S extends Spec> = OptionArg<S> | PositionalArg;
 
-interface FlagArg<S extends Spec> {
-  flag: keyof S['flags'];
+interface OptionArg<S extends Spec> {
+  option: keyof S['opts'];
   value?: string;
 }
 
@@ -93,105 +93,105 @@ interface PositionalArg {
   value: string;
 }
 
-interface PartialFlagArg<S extends Spec> extends FlagArg<S> {
+interface PartialOptionArg<S extends Spec> extends OptionArg<S> {
   needsValue: boolean;
 }
 
 function* parseArgv<S extends Spec>(spec: S, argv: string[]): Iterable<Arg<S>> {
-  const parseFlagArg = flagArgParser(spec);
+  const parseOptArg = optArgParser(spec);
 
   const argIter = argv[Symbol.iterator]();
   argIter.next(); // skip node executable
   argIter.next(); // skip script
 
-  let parseFlags = true;
+  let parseOpts = true;
 
   for (const arg of argIter) {
     if (arg === '--') {
-      parseFlags = false;
+      parseOpts = false;
       continue;
     }
 
-    if (parseFlags && arg.startsWith('-')) {
-      const partialFlag = parseFlagArg(arg);
-      const { flag, needsValue } = partialFlag;
-      let { value } = partialFlag;
+    if (parseOpts && arg.startsWith('-')) {
+      const partialOpt = parseOptArg(arg);
+      const { option, needsValue } = partialOpt;
+      let { value } = partialOpt;
       if (needsValue) {
         [value] = argIter; // Get next arg if any
       }
-      yield { flag, value };
+      yield { option, value };
     } else {
       yield { value: arg };
     }
   }
 }
 
-function flagArgParser<S extends Spec>(spec: S): (arg: string) => PartialFlagArg<S> {
-  const flagLookup = buildFlagLookupTable(spec);
+function optArgParser<S extends Spec>(spec: S): (arg: string) => PartialOptionArg<S> {
+  const optLookup = buildOptLookupTable(spec);
 
-  return function parseFlagArg<S extends Spec>(arg: string): PartialFlagArg<S> {
+  return function parseOptArg<S extends Spec>(arg: string): PartialOptionArg<S> {
     if (!arg.startsWith('-')) {
       throw new Error('Unexpected error');
     }
 
-    let flagKey = arg;
+    let optKey = arg;
     let value;
 
     // Extract value if there is an equal sign.
     if (arg.startsWith('--')) {
-      [, flagKey, value] = arg.match(/^(.*?)(?:=(.*))?$/)!; // RegExp always trivially matches
+      [, optKey, value] = arg.match(/^(.*?)(?:=(.*))?$/)!; // RegExp always trivially matches
     }
 
-    const flag = flagLookup[flagKey];
+    const option = optLookup[optKey];
 
-    if (flag === undefined) {
-      throw new Error(`Unknown flag ${flagKey}`);
+    if (option === undefined) {
+      throw new Error(`Unknown opt ${optKey}`);
     }
 
-    const flagSpec = specFlags(spec)![flag]; // Existence of flag guarantees specFlags(spec) is non-nullish
-    const isSwitch = flagSpec.switch === true;
+    const optSpec = specOpts(spec)![option]; // Existence of option guarantees specOpts(spec) is non-nullish
+    const isSwitch = optSpec.switch === true;
 
     if (isSwitch && value !== undefined) {
-      throw new Error(`Flag ${flagKey} is not expecting an argument`);
+      throw new Error(`Option ${optKey} is not expecting an argument`);
     }
 
-    return { flag, value, needsValue: !isSwitch && value === undefined };
+    return { option, value, needsValue: !isSwitch && value === undefined };
   }
 }
 
-function buildFlagLookupTable<S extends Spec>(spec: S): Partial<Record<string, keyof S['flags']>> {
-  const flagLookup: Record<string, keyof S['flags']> = {};
+function buildOptLookupTable<S extends Spec>(spec: S): Partial<Record<string, keyof S['opts']>> {
+  const optLookup: Record<string, keyof S['opts']> = {};
 
-  const flags = specFlags(spec);
+  const opts = specOpts(spec);
 
-  for (const flagKey in flags) {
-    flagLookup[`--${flagKey}`] = flagKey;
-    const { short } = flags[flagKey];
+  for (const optKey in opts) {
+    optLookup[`--${optKey}`] = optKey;
+    const { short } = opts[optKey];
     if (short !== undefined) {
       if (short.length !== 1) {
         throw new Error(`Short option ${short} is more than one character long`);
       }
-      flagLookup[`-${short}`] = flagKey;
+      optLookup[`-${short}`] = optKey;
     }
   }
 
-  return flagLookup;
+  return optLookup;
 }
 
-function flagValue<F extends FlagSpec>(flagSpec: F, value?: string, present?: boolean): FlagType<F>;
-function flagValue(flagSpec: FlagSpec<any>, value?: string, present = true): any {
-  if (flagSpec.switch) {
-    return present ? true : (flagSpec.default ?? false);
+function optValue<F extends OptionSpec>(optSpec: F, value?: string, present?: boolean): OptionType<F>;
+function optValue(optSpec: OptionSpec<any>, value?: string, present = true): any {
+  if (optSpec.switch) {
+    return present ? true : (optSpec.default ?? false);
   } else if (value !== undefined) {
-    return flagSpec.parse?.(value) ?? value;
+    return optSpec.parse?.(value) ?? value;
   } else {
-    return flagSpec.default;
+    return optSpec.default;
   }
 }
 
 // We define this getter to help the type system get the correct type for
-// spec.flags. If we don't do this, it types the value spec.flags as if spec
+// spec.opts. If we don't do this, it types the value spec.opts as if spec
 // was Spec<string>.
-function specFlags<S extends Spec>(spec: S): S['flags'] {
-  return spec.flags;
+function specOpts<S extends Spec>(spec: S): S['opts'] {
+  return spec.opts;
 }

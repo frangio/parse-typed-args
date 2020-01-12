@@ -14,7 +14,7 @@ npm install parse-typed-args
 import parse from 'parse-typed-args';
 
 const command = parse({
-  flags: {
+  opts: {
     flavor: {},
     amount: {
       default: 1,
@@ -23,7 +23,7 @@ const command = parse({
   },
 })(process.argv);
 
-const { flavor, amount } = command.flags;
+const { flavor, amount } = command.opts;
 
 // Types are inferred from the command specification above.
 // - flavor : string | undefined
@@ -47,7 +47,7 @@ Preparing 2 chocolate ice creams
 
 _**Note:** The types presented here are simplified. In reality, almost all types are
 generic on the specific `S extends Spec` that contains the details of the
-accepted flags, or `F extends string` that contains the names of the flags._
+accepted options, or `O extends string` that contains the names of the options._
 
 ### `parse(spec: Spec): Parser`
 
@@ -65,33 +65,33 @@ so the actual arguments will be parsed from index 2 onwards.
 ```typescript
 interface Command {
   args: string[];
-  flags: CommandFlags;
+  opts: CommandOptions;
 }
 ```
 
 `command.args` contains all of the positional arguments found in `argv`.
 
-`command.flags` is an object whose properties map to the flags in the
-specification. For every `flagName` in `spec.flags` there will be a property
-`command.flags[flagName]`, whose type `T` will depend on the details of the flag.
+`command.opts` is an object whose properties map to the options in the
+specification. For every `optName` in `spec.opts` there will be a property
+`command.opts[optName]`, whose type `T` will depend on the details of the option.
 The rules for figuring out this type are complex but should be intuitive.
 You should rely on your IDE and compiler. Here's some rules of thumb:
 
 * By default, `T` will be `string | undefined`.
 * If you add a parse function `(arg: string) => U`, `T` will be `U | undefined`.
 * If you add a default value, `T` will be `U`.
-* If the flag is a switch, `T` will be `boolean`.
+* If the option is a switch, `T` will be `boolean`.
 
 ### `Spec`
 
 ```typescript
 interface Spec {
-  flags?: {
-    [flag: string]: FlagSpec;
+  opts?: {
+    [opt: string]: OptionSpec;
   };
 }
 
-interface FlagSpec<T> {
+interface OptionSpec<T> {
   short?: string;
   switch?: boolean;
   default?: T;
@@ -99,25 +99,25 @@ interface FlagSpec<T> {
 }
 ```
 
-#### `FlagSpec.short`
+#### `OptionSpec.short`
 
-The character used for abbreviated flags, e.g, `-a`. If not a single character
+The character used for abbreviated options, e.g, `-a`. If not a single character
 string, the parser will throw an error.
 
-#### `FlagSpec.switch`
+#### `OptionSpec.switch`
 
-Whether this flag is a boolean switch. Defaults to `false`. If `true`, the flag
+Whether this option is a boolean switch. Defaults to `false`. If `true`, the option
 will not accept a value. If a value is passed on the command line using
-`--flag=value` syntax, the parser will throw an error.
+`--option=value` syntax, the parser will throw an error.
 
-#### `FlagSpec.default`
+#### `OptionSpec.default`
 
-The default value that will be returned in the `command` if the flag is not
+The default value that will be returned in the `command` if the option is not
 specified on the command line.
 
-#### `FlagSpec.parse`
+#### `OptionSpec.parse`
 
-A function that will be used to convert the flag value to another type.
+A function that will be used to convert the option value to another type.
 
 ## Acknowledgment
 
