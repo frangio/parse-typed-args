@@ -2,27 +2,47 @@ interface Spec<Flag extends string = string> {
   flags?: Record<Flag, FlagSpec>;
 }
 
-type FlagSpec<T = unknown> = FlagSpecGeneric<T> | FlagSpecString | FlagSpecBoolean;
+type FlagSpec<T = unknown> = SwitchSpec<T> | NonSwitchSpec<T>;
 
-interface FlagSpecBase<T> {
+interface SwitchSpec<T> {
+  switch: true;
+  default?: T;
   short?: string;
-  switch?: boolean;
+}
+
+interface NonSwitchSpec<T> {
+  switch?: false;
   default?: T;
   parse?: (input: string) => T;
+  short?: string;
 }
 
-interface FlagSpecString extends FlagSpecBase<string> {
-  switch?: false;
-}
+type FlagDefault<O extends FlagSpec> =
+  'default' extends keyof O
+    ? O['default']
+    : IfSwitch<O, false, undefined>
 
-interface FlagSpecGeneric<T> extends FlagSpecBase<T> {
-  switch?: false;
-  parse: (input: string) => T;
-}
+type FlagOutput<O extends FlagSpec> =
+  'parse' extends keyof O
+    ? O extends FlagSpec<infer T>
+      ? T
+      : unknown
+    : IfSwitch<O, true, string>;
 
-interface FlagSpecBoolean extends FlagSpecBase<boolean> {
-  switch: true;
-}
+type IfSwitch<O extends FlagSpec, Then, Else> =
+  'switch' extends keyof O
+    ? true extends O['switch']
+      ? O['switch'] extends true
+        ? Then
+        : unknown // e.g. O['switch'] = boolean
+      : Else
+    : Else
+
+type FlagType<F extends FlagSpec> =
+  // trick to force the compiler to show the expanded type to the user
+  void extends void
+    ? FlagDefault<F> | FlagOutput<F>
+    : never;
 
 type Parser<S extends Spec> = (argv: string[]) => Command<S>;
 
@@ -34,17 +54,6 @@ interface Command<S extends Spec> {
 type CommandFlags<S extends Spec> = {
   [flag in keyof S['flags']]: FlagType<S['flags'][flag]>;
 };
-
-type FlagType<F extends FlagSpec> =
-  F extends FlagSpecBoolean ? FlagValue<F>
-  : undefined extends F['default'] ? FlagValue<F> | undefined
-  : FlagValue<F>;
-
-type FlagValue<F extends FlagSpec> =
-  F extends FlagSpecGeneric<string> ? string
-  : F extends FlagSpecBoolean ? boolean
-  : F extends FlagSpecGeneric<infer T> ? T
-  : never;
 
 export default function parse<S extends Spec>(spec: S): Parser<S> {
   const flagSpecs = specFlags(spec);
