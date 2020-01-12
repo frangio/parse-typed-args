@@ -34,7 +34,7 @@ const { flavor, amount } = command.opts;
 // - cone : boolean
 
 if (flavor === undefined) {
-  console.error('icem-cream-please --flavor <flavor> [--amount <amount>] [--cone]');
+  console.error('ice-cream-please --flavor <flavor> [--amount <amount>] [--cone]');
   process.exit(1);
 }
 
