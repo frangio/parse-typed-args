@@ -26,7 +26,7 @@ const command = parse({
   },
 })(process.argv);
 
-const { flavor, amount } = command.opts;
+const { flavor, amount, cone } = command.opts;
 
 // Types are inferred from the command specification above.
 // - flavor : string | undefined
