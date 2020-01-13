@@ -2,41 +2,72 @@ interface Spec<Option extends string = string> {
   opts?: Record<Option, OptionSpec>;
 }
 
-type OptionSpec<T = unknown> = SwitchSpec<T> | NonSwitchSpec<T>;
+type OptionSpec<T = unknown> = NonSwitchRequiredSpec<T> | SwitchSpec<T> | NonSwitchOptionalSpec<T>;
 
-interface SwitchSpec<T> {
-  switch: true;
+interface OptionBaseSpec<T> {
+  switch?: boolean;
+  parse?: (input: string) => T;
   default?: T;
+  required?: boolean;
   short?: string;
 }
 
-interface NonSwitchSpec<T> {
+interface SwitchSpec<T> extends OptionBaseSpec<T> {
+  switch: true;
+  parse?: never;
+  required?: never;
+}
+
+interface NonSwitchOptionalSpec<T> extends OptionBaseSpec<T> {
   switch?: false;
-  default?: T;
-  parse?: (input: string) => T;
-  short?: string;
+  required?: false;
+}
+
+interface NonSwitchRequiredSpec<T> extends OptionBaseSpec<T> {
+  switch?: false;
+  default?: never;
+  required: true;
 }
 
 type OptionDefault<O extends OptionSpec> =
-  'default' extends keyof O
-    ? O['default']
-    : IfSwitch<O, false, undefined>
+  Get<O, 'default', undefined> extends infer P
+    ? P extends undefined
+      ? IfOptionIsSwitch<O, false, IfOptionIsRequired<O, never, undefined>>
+      : P
+    : never;
 
 type OptionOutput<O extends OptionSpec> =
-  'parse' extends keyof O
-    ? O extends OptionSpec<infer T>
+  Get<O, 'parse', undefined> extends infer P
+    ? P extends (input: string) => infer T
       ? T
-      : unknown
-    : IfSwitch<O, true, string>;
+      : P extends undefined
+        ? IfOptionIsSwitch<O, true, string>
+        : never
+    : never;
 
-type IfSwitch<O extends OptionSpec, Then, Else> =
-  'switch' extends keyof O
-    ? true extends O['switch']
-      ? O['switch'] extends true
-        ? Then
-        : unknown // e.g. O['switch'] = boolean
+type IfOptionIsSwitch<O extends OptionSpec, Then, Else> =
+  If<Get<O, 'switch'>, Then, Else>;
+
+type IfOptionIsRequired<O extends OptionSpec, Then, Else> =
+  If<Get<O, 'required'>, Then, Else>;
+
+type Get<T, K extends string, D = never> =
+  T extends infer T1
+    ? K extends keyof T1
+      ? T1 extends { [key in K]: infer U }
+        ? U
+        : T1 extends { [key in K]?: infer U }
+          ? U | undefined
+          : never
+      : D
+    : never;
+
+type If<Cond, Then, Else> =
+  true extends Cond
+    ? Cond extends true
+      ? Then
       : Else
-    : Else
+    : Else;
 
 type OptionType<F extends OptionSpec> =
   // Trick to force the compiler to show the expanded type to the user
@@ -66,7 +97,7 @@ export default function parse<S extends Spec>(spec: S): Parser<S> {
       if ('option' in arg) {
         const { option, value } = arg;
         const optSpec = optSpecs![option]; // Existence of opt guarantees optSpecs is non-nullish
-        opts[option] = optValue(optSpec, value);
+        opts[option] = optValue(option as string, optSpec, value);
       } else {
         args.push(arg.value);
       }
@@ -74,7 +105,7 @@ export default function parse<S extends Spec>(spec: S): Parser<S> {
 
     for (const opt in optSpecs) {
       if (opts[opt] === undefined) {
-        opts[opt] = optValue(optSpecs[opt], undefined, false);
+        opts[opt] = optValue(opt, optSpecs[opt], undefined, false);
       }
     }
 
@@ -178,14 +209,22 @@ function buildOptLookupTable<S extends Spec>(spec: S): Partial<Record<string, ke
   return optLookup;
 }
 
-function optValue<F extends OptionSpec>(optSpec: F, value?: string, present?: boolean): OptionType<F>;
-function optValue(optSpec: OptionSpec<any>, value?: string, present = true): any {
+function optValue<F extends OptionSpec>(name: string, optSpec: F, value?: string, present?: boolean): OptionType<F>;
+function optValue(name: string, optSpec: OptionSpec<object>, value?: string, present = true): OptionType<OptionSpec<object>> {
   if (optSpec.switch) {
-    return present ? true : (optSpec.default ?? false);
+    if (present) {
+      return true;
+    } else if ('default' in optSpec) {
+      optSpec.default;
+    } else {
+      return false;
+    }
   } else if (value !== undefined) {
     return optSpec.parse?.(value) ?? value;
-  } else {
+  } else if ('default' in optSpec) {
     return optSpec.default;
+  } else if (optSpec.required) {
+    throw new MissingRequiredOption(name);
   }
 }
 
@@ -194,4 +233,10 @@ function optValue(optSpec: OptionSpec<any>, value?: string, present = true): any
 // was Spec<string>.
 function specOpts<S extends Spec>(spec: S): S['opts'] {
   return spec.opts;
+}
+
+export class MissingRequiredOption extends Error {
+  constructor(readonly option: string) {
+    super(`Missing required option '${option}'`);
+  }
 }
