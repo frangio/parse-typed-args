@@ -228,6 +228,16 @@ function optValue(name: string, optSpec: OptionSpec<object>, value?: string, pre
   }
 }
 
+function switchValue(name: string, optSpec: SwitchSpec<object>, value?: string, present = true): OptionType<SwitchSpec<object>> {
+  if (present) {
+    return true;
+  } else if ('default' in optSpec) {
+    return optSpec.default;
+  } else {
+    return false;
+  }
+}
+
 // We define this getter to help the type system get the correct type for
 // spec.opts. If we don't do this, it types the value spec.opts as if spec
 // was Spec<string>.
