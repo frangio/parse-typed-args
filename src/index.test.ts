@@ -1,7 +1,6 @@
 import test from 'ava';
 
 import parse from '.';
-import { MissingRequiredOption } from '.';
 
 test('empty spec', t => {
   const input = ['node', 'script.js', 'a', 'b'];
@@ -150,19 +149,4 @@ test('default value for boolean switches', t => {
     },
   })(input);
   t.is(output.opts.yes, false);
-});
-
-test('missing required option triggers exception', t => {
-  const err: MissingRequiredOption =
-    t.throws(() => {
-      const input = argv();
-      const output = parse({
-        opts: {
-          yes: {
-            required: true,
-          },
-        },
-      })(input);
-    }, MissingRequiredOption);
-  t.is(err.option, 'yes');
 });

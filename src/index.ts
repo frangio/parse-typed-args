@@ -2,37 +2,28 @@ interface Spec<Option extends string = string> {
   opts?: Record<Option, OptionSpec>;
 }
 
-type OptionSpec<T = unknown> = NonSwitchRequiredSpec<T> | SwitchSpec<T> | NonSwitchOptionalSpec<T>;
+type OptionSpec<T = unknown> = SwitchSpec<T> | NonSwitchSpec<T>;
 
 interface OptionBaseSpec<T> {
   switch?: boolean;
   parse?: (input: string) => T;
   default?: T;
-  required?: boolean;
   short?: string;
 }
 
 interface SwitchSpec<T> extends OptionBaseSpec<T> {
   switch: true;
   parse?: never;
-  required?: never;
 }
 
-interface NonSwitchOptionalSpec<T> extends OptionBaseSpec<T> {
+interface NonSwitchSpec<T> extends OptionBaseSpec<T> {
   switch?: false;
-  required?: false;
-}
-
-interface NonSwitchRequiredSpec<T> extends OptionBaseSpec<T> {
-  switch?: false;
-  default?: never;
-  required: true;
 }
 
 type OptionDefault<O extends OptionSpec> =
   Get<O, 'default', undefined> extends infer P
     ? P extends undefined
-      ? IfOptionIsSwitch<O, false, IfOptionIsRequired<O, never, undefined>>
+      ? IfOptionIsSwitch<O, false, undefined>
       : P
     : never;
 
@@ -47,9 +38,6 @@ type OptionOutput<O extends OptionSpec> =
 
 type IfOptionIsSwitch<O extends OptionSpec, Then, Else> =
   If<Get<O, 'switch'>, Then, Else>;
-
-type IfOptionIsRequired<O extends OptionSpec, Then, Else> =
-  If<Get<O, 'required'>, Then, Else>;
 
 type Get<T, K extends string, D = never> =
   T extends infer T1
@@ -223,8 +211,6 @@ function optValue(name: string, optSpec: OptionSpec<object>, value?: string, pre
     return optSpec.parse?.(value) ?? value;
   } else if ('default' in optSpec) {
     return optSpec.default;
-  } else if (optSpec.required) {
-    throw new MissingRequiredOption(name);
   }
 }
 
@@ -233,10 +219,4 @@ function optValue(name: string, optSpec: OptionSpec<object>, value?: string, pre
 // was Spec<string>.
 function specOpts<S extends Spec>(spec: S): S['opts'] {
   return spec.opts;
-}
-
-export class MissingRequiredOption extends Error {
-  constructor(readonly option: string) {
-    super(`Missing required option '${option}'`);
-  }
 }
