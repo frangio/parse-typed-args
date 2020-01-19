@@ -135,6 +135,16 @@ specified on the command line.
 
 A function that will be used to convert the option value to another type.
 
+## Roadmap
+
+This project is not feature complete yet. These are some planned features:
+
+- Collapsed short flags (`-abc` &rarr; `-a -b -c`)
+- Typed positional arguments
+- Auto generated help text
+- Opt-in preconfigured flags (help, version)
+- Subcommands
+
 ## Acknowledgment
 
 This project was inspired by the [oclif] framework.
