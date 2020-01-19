@@ -1,10 +1,6 @@
 export default {
-  files: ["**/*.test.ts"],
-  require: ["./babel-register"],
-  babel: {
-    extensions: [
-      "ts",
-    ],
-  },
+  files: ["**/*.test.js"],
   verbose: true,
+  babel: false,
+  compileEnhancements: false,
 };

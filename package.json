@@ -14,18 +14,13 @@
   ],
   "scripts": {
     "prepare": "tsc",
-    "test": "ava",
-    "test:watch": "ava --watch"
+    "test": "tsc && ava",
+    "test:watch": "fgbg 'ava --watch' 'tsc --watch'"
   },
   "devDependencies": {
-    "@babel/plugin-proposal-class-properties": "^7.7.4",
-    "@babel/plugin-proposal-nullish-coalescing-operator": "^7.7.4",
-    "@babel/plugin-proposal-optional-chaining": "^7.7.4",
-    "@babel/preset-env": "^7.7.4",
-    "@babel/preset-typescript": "^7.7.4",
-    "@babel/register": "^7.7.4",
     "@types/node": "^10.17.6",
     "ava": "^2.4.0",
+    "fgbg": "^0.1.4",
     "typescript": "^3.7.2"
   },
   "license": "MIT"
