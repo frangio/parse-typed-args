@@ -25,18 +25,6 @@ test('flag with equal sign', t => {
   t.is(output.opts.option, '11');
 });
 
-test('flag with default', t => {
-  const input = argv('--option');
-  const output = parse({
-    opts: {
-      option: {
-        default: '22',
-      },
-    },
-  })(input);
-  t.is(output.opts.option, '22');
-});
-
 test('flag with separate value', t => {
   const input = argv('--option', '33');
   const output = parse({
@@ -149,4 +137,28 @@ test('default value for boolean switches', t => {
     },
   })(input);
   t.is(output.opts.yes, false);
+});
+
+test('collapsed short options', t => {
+  const input = argv('-abc', '10');
+  const output = parse({
+    opts: {
+      alpha: { short: 'a', switch: true },
+      bravo: { short: 'b', switch: true },
+      charlie: { short: 'c' },
+    },
+  })(input);
+  t.is(output.opts.alpha, true);
+  t.is(output.opts.bravo, true);
+  t.is(output.opts.charlie, '10');
+});
+
+test('default does not override undefined', t => {
+  const input = argv('--opt', '15');
+  const output = parse({
+    opts: {
+      opt: { parse: () => undefined, default: '20' },
+    },
+  })(input);
+  t.is(output.opts.opt, undefined);
 });

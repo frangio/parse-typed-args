@@ -83,17 +83,15 @@ export default function parse<S extends Spec>(spec: S): Parser<S> {
 
     for (const arg of parseArgv(spec, argv)) {
       if ('option' in arg) {
-        const { option, value } = arg;
-        const optSpec = optSpecs![option]; // Existence of opt guarantees optSpecs is non-nullish
-        opts[option] = optValue(option as string, optSpec, value);
+        opts[arg.option.name] = optValue(arg.option.spec, arg.value);
       } else {
         args.push(arg.value);
       }
     }
 
     for (const opt in optSpecs) {
-      if (opts[opt] === undefined) {
-        opts[opt] = optValue(opt, optSpecs[opt], undefined, false);
+      if (!(opt in opts)) {
+        opts[opt] = optValue(optSpecs[opt], undefined, false);
       }
     }
 
@@ -104,7 +102,7 @@ export default function parse<S extends Spec>(spec: S): Parser<S> {
 type Arg<S extends Spec> = OptionArg<S> | PositionalArg;
 
 interface OptionArg<S extends Spec> {
-  option: keyof S['opts'];
+  option: OptionLookupResult<S>;
   value?: string;
 }
 
@@ -112,93 +110,117 @@ interface PositionalArg {
   value: string;
 }
 
-interface PartialOptionArg<S extends Spec> extends OptionArg<S> {
-  needsValue: boolean;
+function* parseArgv<S extends Spec>(spec: S, argv: string[]): Generator<Arg<S>> {
+  const normalizedArgs = normalizeArgv(spec, argv);
+
+  for (const arg of normalizedArgs) {
+    if (arg.value === undefined && 'option' in arg && !arg.option.spec.switch) {
+      const next = normalizedArgs.next();
+      if (next.done || 'option' in next.value) {
+        throw new Error(`Missing argument for option '${arg.option.name}'`);
+      } else {
+        arg.value = next.value.value;
+      }
+    }
+
+    yield arg;
+  }
 }
 
-function* parseArgv<S extends Spec>(spec: S, argv: string[]): Iterable<Arg<S>> {
-  const parseOptArg = optArgParser(spec);
+function* normalizeArgv<S extends Spec>(spec: S, argv: string[]): Generator<Arg<S>> {
+  const parseArg = argParser(spec);
 
-  const argIter = argv[Symbol.iterator]();
-  argIter.next(); // skip node executable
-  argIter.next(); // skip script
+  const argvIter = argv[Symbol.iterator]();
+  argvIter.next(); // skip node executable
+  argvIter.next(); // skip script
 
   let parseOpts = true;
 
-  for (const arg of argIter) {
+  for (const arg of argvIter) {
     if (arg === '--') {
       parseOpts = false;
       continue;
     }
 
-    if (parseOpts && arg.startsWith('-')) {
-      const partialOpt = parseOptArg(arg);
-      const { option, needsValue } = partialOpt;
-      let { value } = partialOpt;
-      if (needsValue) {
-        [value] = argIter; // Get next arg if any
-      }
-      yield { option, value };
+    if (parseOpts) {
+      yield* parseArg(arg);
     } else {
       yield { value: arg };
     }
   }
 }
 
-function optArgParser<S extends Spec>(spec: S): (arg: string) => PartialOptionArg<S> {
-  const optLookup = buildOptLookupTable(spec);
+function argParser<S extends Spec>(spec: S): (arg: string) => Generator<Arg<S>> {
+  const optLookup = buildOptLookup<S>(spec);
 
-  return function parseOptArg<S extends Spec>(arg: string): PartialOptionArg<S> {
-    if (!arg.startsWith('-')) {
-      throw new Error('Unexpected error');
+  return function* parseArg(arg: string): Generator<Arg<S>> {
+    const match = arg.match(/^-(.+?)(?:=(.*))?$/);
+
+    if (match) {
+      const [, key, value] = match;
+
+      if (key.startsWith('-')) {
+        const option = optLookup(key);
+
+        if (value !== undefined && option.spec.switch) {
+          throw new Error(`Unexpected argument for option '${name}'`);
+        }
+
+        yield { option, value };
+      } else {
+        const chars = [...key];
+        const options = chars.map(c => optLookup(c));
+        const lastOption = options.pop()!; // The regex guarantees there is at least one option
+
+        for (const option of options) {
+          if (!option.spec.switch) {
+            throw new Error(`Missing argument for option '${option.name}'`);
+          }
+          yield { option };
+        }
+
+        yield { option: lastOption };
+      }
+    } else {
+      yield { value: arg };
     }
-
-    let optKey = arg;
-    let value;
-
-    // Extract value if there is an equal sign.
-    if (arg.startsWith('--')) {
-      [, optKey, value] = arg.match(/^(.*?)(?:=(.*))?$/)!; // RegExp always trivially matches
-    }
-
-    const option = optLookup[optKey];
-
-    if (option === undefined) {
-      throw new Error(`Unknown opt ${optKey}`);
-    }
-
-    const optSpec = specOpts(spec)![option]; // Existence of option guarantees specOpts(spec) is non-nullish
-    const isSwitch = optSpec.switch === true;
-
-    if (isSwitch && value !== undefined) {
-      throw new Error(`Option ${optKey} is not expecting an argument`);
-    }
-
-    return { option, value, needsValue: !isSwitch && value === undefined };
   }
 }
 
-function buildOptLookupTable<S extends Spec>(spec: S): Partial<Record<string, keyof S['opts']>> {
-  const optLookup: Record<string, keyof S['opts']> = {};
+interface OptionLookupResult<S extends Spec> {
+  name: keyof S['opts'];
+  spec: OptionSpec;
+}
+
+function buildOptLookup<S extends Spec>(spec: S): (key: string) => OptionLookupResult<S> {
+  const optLookup: Partial<Record<string, OptionLookupResult<S>>> = {};
 
   const opts = specOpts(spec);
 
-  for (const optKey in opts) {
-    optLookup[`--${optKey}`] = optKey;
-    const { short } = opts[optKey];
+  for (const name in opts) {
+    const spec = opts[name];
+    optLookup['-' + name] = { name, spec };
+    const { short } = spec;
     if (short !== undefined) {
       if (short.length !== 1) {
         throw new Error(`Short option ${short} is more than one character long`);
       }
-      optLookup[`-${short}`] = optKey;
+      optLookup[short] = { name, spec };
     }
   }
 
-  return optLookup;
+  return key => {
+    const res = optLookup[key];
+    if (res === undefined) {
+      throw new Error(`Unknown option: -${key}`);
+    } else {
+      return res;
+    }
+  }
 }
 
-function optValue<F extends OptionSpec>(name: string, optSpec: F, value?: string, present?: boolean): OptionType<F>;
-function optValue(name: string, optSpec: OptionSpec<object>, value?: string, present = true): OptionType<OptionSpec<object>> {
+function optValue<F extends OptionSpec>(optSpec: F, value?: string, present?: boolean): OptionType<F>;
+function optValue(optSpec: OptionSpec<object>, value?: string, present = true): OptionType<OptionSpec<object>> {
   if (optSpec.switch) {
     if (present) {
       return true;
@@ -208,7 +230,11 @@ function optValue(name: string, optSpec: OptionSpec<object>, value?: string, pre
       return false;
     }
   } else if (value !== undefined) {
-    return optSpec.parse?.(value) ?? value;
+    if (optSpec.parse !== undefined) {
+      return optSpec.parse(value);
+    } else {
+      return value;
+    }
   } else if ('default' in optSpec) {
     return optSpec.default;
   }
